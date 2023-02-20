@@ -23,7 +23,7 @@ def decrypt(enc_data, algorithm_dkey, mode):
     return decryptor.update(enc_data) + decryptor.finalize()
 
 def decode_tag(data):
-    latitude = struct.unpack(">i", data[0:4])[0] / 10000000.0
+    latitude = struct.unpack(">i", data[:4])[0] / 10000000.0
     longitude = struct.unpack(">i", data[4:8])[0] / 10000000.0
     confidence = bytes_to_int(data[8:9])
     status = bytes_to_int(data[9:10])
@@ -38,7 +38,7 @@ if __name__ == "__main__":
 
     ids = {}
     names = {}
-    for keyfile in glob.glob(args.prefix+'*.keys'):
+    for keyfile in glob.glob(f'{args.prefix}*.keys'):
         # read key files generated with generate_keys.py
         with open(keyfile) as f:
             hashed_adv = ''
@@ -65,9 +65,10 @@ if __name__ == "__main__":
         sock.sendall(bytes(data + '\n', encoding='ascii'))
         response = b''
         while True:
-            rdata = sock.recv(1024)
-            if not rdata: break
-            response += rdata
+            if rdata := sock.recv(1024):
+                response += rdata
+            else:
+                break
     finally:
         sock.close()
     res = json.loads(response)['results']
@@ -80,7 +81,7 @@ if __name__ == "__main__":
         data = base64.b64decode(report['payload'])
 
         # the following is all copied from https://github.com/hatomist/openhaystack-python, thanks @hatomist!
-        timestamp = bytes_to_int(data[0:4])
+        timestamp = bytes_to_int(data[:4])
         eph_key = ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP224R1(), data[5:62])
         shared_key = ec.derive_private_key(priv, ec.SECP224R1(), default_backend()).exchange(ec.ECDH(), eph_key)
         symmetric_key = sha256(shared_key + b'\x00\x00\x00\x01' + data[5:62])

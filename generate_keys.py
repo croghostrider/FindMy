@@ -23,7 +23,7 @@ parser.add_argument('-v','--verbose', help='print keys as they are generated', a
 args = parser.parse_args()
 
 if args.yaml:
-    yaml=open(args.yaml + '.yaml','w')
+    yaml = open(f'{args.yaml}.yaml', 'w')
     yaml.write('  keys:\n')
 
 for i in range(args.nkeys):
@@ -39,17 +39,17 @@ for i in range(args.nkeys):
 
     if args.verbose:
         print('%d)' % (i+1))
-        print('Private key: %s' % priv_b64)
-        print('Advertisement key: %s' % adv_b64)
-        print('Hashed adv key: %s' % s256_b64)
+        print(f'Private key: {priv_b64}')
+        print(f'Advertisement key: {adv_b64}')
+        print(f'Hashed adv key: {s256_b64}')
 
     if '/' in s256_b64[:7]:
         print('no key file written, there was a / in the b64 of the hashed pubkey :(')
     else:
         if args.prefix:
-            fname = '%s_%s.keys' % (args.prefix, s256_b64[:7])
+            fname = f'{args.prefix}_{s256_b64[:7]}.keys'
         else:
-            fname = '%s.keys' % s256_b64[:7]
+            fname = f'{s256_b64[:7]}.keys'
 
         with open(fname, 'w') as f:
             f.write('Private key: %s\n' % priv_b64)

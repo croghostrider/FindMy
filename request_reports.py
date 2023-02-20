@@ -31,7 +31,7 @@ def unpad(paddedBinary, blocksize):
     return unpadder.update(paddedBinary) + unpadder.finalize()
 
 def decode_tag(data):
-    latitude = struct.unpack(">i", data[0:4])[0] / 10000000.0
+    latitude = struct.unpack(">i", data[:4])[0] / 10000000.0
     longitude = struct.unpack(">i", data[4:8])[0] / 10000000.0
     confidence = bytes_to_int(data[8:9])
     status = bytes_to_int(data[9:10])
@@ -40,7 +40,7 @@ def decode_tag(data):
 def readKeychain():
     # https://github.com/libyal/dtformats/blob/main/documentation/MacOS%20keychain%20database%20file%20format.asciidoc
     res = [None] *7
-    with open("%s/Library/Keychains/login.keychain-db" % os.path.expanduser("~"),'rb') as db:
+    with open(f'{os.path.expanduser("~")}/Library/Keychains/login.keychain-db', 'rb') as db:
         kc = db.read()
         def get_table_offsets(tbl_array_offset):
             ntables = bytes_to_int(kc[tbl_array_offset +4 : tbl_array_offset +8])
@@ -56,9 +56,21 @@ def readKeychain():
         def match_record_attribute(rec_start, rec_nattr, rec_attr, attr_match):
             attr_offsets_b = kc[rec_start +24 : rec_start +24 +(rec_nattr *4)]
             attr_offsets = [bytes_to_int(attr_offsets_b[i:i+4]) +rec_start -1 for i in xrange(0, len(attr_offsets_b), 4)]
-            if attr_offsets[0] and attr_offsets[0] < rec_start +bytes_to_int(kc[rec_start : rec_start +4]): # non-zero offset, and no weird big values
-                if kc[attr_offsets[rec_attr] +4 : attr_offsets[rec_attr] +4 +bytes_to_int(kc[attr_offsets[rec_attr] : attr_offsets[rec_attr] +4])] == attr_match:
-                    return kc[rec_start +24 +(rec_nattr *4) : rec_start +24 +(rec_nattr *4) +bytes_to_int(kc[rec_start +16 : rec_start +20])] # return record blob data (NOTE not sure about BLOB size!!!)
+            if (
+                attr_offsets[0]
+                and attr_offsets[0]
+                < rec_start + bytes_to_int(kc[rec_start : rec_start + 4])
+                and kc[
+                    attr_offsets[rec_attr]
+                    + 4 : attr_offsets[rec_attr]
+                    + 4
+                    + bytes_to_int(
+                        kc[attr_offsets[rec_attr] : attr_offsets[rec_attr] + 4]
+                    )
+                ]
+                == attr_match
+            ):
+                return kc[rec_start +24 +(rec_nattr *4) : rec_start +24 +(rec_nattr *4) +bytes_to_int(kc[rec_start +16 : rec_start +20])] # return record blob data (NOTE not sure about BLOB size!!!)
             return None
 
         if kc[:4] == b'kych':
@@ -99,13 +111,21 @@ def retrieveICloudKey():
     db_key = unpad(decrypt(db_key_enc, algorithms.TripleDES(master_key), modes.CBC(db_key_IV)), algorithms.TripleDES.block_size)[:24]
     p1 = unpad(decrypt(symmetric_key_enc, algorithms.TripleDES(db_key), modes.CBC(b'J\xdd\xa2,y\xe8!\x05')), algorithms.TripleDES.block_size)
     symmetric_key = unpad(decrypt(p1[:32][::-1], algorithms.TripleDES(db_key), modes.CBC(symmetric_key_IV)), algorithms.TripleDES.block_size)[4:]
-    icloud_key = unpad(decrypt(icloud_key_enc, algorithms.TripleDES(symmetric_key), modes.CBC(icloud_key_IV)), algorithms.TripleDES.block_size)
-    return icloud_key
+    return unpad(
+        decrypt(
+            icloud_key_enc,
+            algorithms.TripleDES(symmetric_key),
+            modes.CBC(icloud_key_IV),
+        ),
+        algorithms.TripleDES.block_size,
+    )
 
 def getAppleDSIDandSearchPartyToken(iCloudKey):
     # copied from https://github.com/Hsn723/MMeTokenDecrypt
     decryption_key = hmac.new(b't9s\"lx^awe.580Gj%\'ld+0LG<#9xa?>vb)-fkwb92[}', base64.b64decode(iCloudKey), digestmod=hashlib.md5).digest()
-    mmeTokenFile = glob.glob("%s/Library/Application Support/iCloud/Accounts/[0-9]*" % os.path.expanduser("~"))[0]
+    mmeTokenFile = glob.glob(
+        f'{os.path.expanduser("~")}/Library/Application Support/iCloud/Accounts/[0-9]*'
+    )[0]
     decryptedBinary = unpad(decrypt(open(mmeTokenFile, 'rb').read(), algorithms.AES(decryption_key), modes.CBC(b'\00' *16)), algorithms.AES.block_size);
     binToPlist = NSData.dataWithBytes_length_(decryptedBinary, len(decryptedBinary))
     tokenPlist = NSPropertyListSerialization.propertyListWithData_options_format_error_(binToPlist, 0, None, None)[0]
@@ -119,7 +139,9 @@ def getOTPHeaders():
     return anisette[6], anisette[3]
 
 def getCurrentTimes():
-    clientTime = datetime.datetime.utcnow().replace(microsecond=0).isoformat() + 'Z'
+    clientTime = (
+        f'{datetime.datetime.utcnow().replace(microsecond=0).isoformat()}Z'
+    )
     clientTimestamp = int(datetime.datetime.now().strftime('%s'))
     return clientTime, time.tzname[1], clientTimestamp
 

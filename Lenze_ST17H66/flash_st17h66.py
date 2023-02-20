@@ -84,18 +84,18 @@ uart.baudrate = 115200
 
 
 print('Erase + Write')
-cmds = []
-cmds.append(b'er512') # erase
-cmds.append(b'rdrev+')
-cmds.append(b'wrreg4000c890 ab000001 ')
-cmds.append(b'wrreg4000c838 ff010005 ')
-cmds.append(b'spifs 0 1 3 0 ')
-cmds.append(b'sfmod 2 2 ')
-cmds.append(b'cpnum ffffffff ')
-cmds.append(b'cpbin c0 002000 ' + b'%x' % len(c0) + b' 11002000')
-cmds.append(b'cpbin c1 005000 ' + b'%x' % len(c1) + b' 11005000')
-cmds.append(b'cpbin c2 020000 ' + b'%x' % len(c2) + b' 11020000')
-
+cmds = [
+    b'er512',
+    b'rdrev+',
+    b'wrreg4000c890 ab000001 ',
+    b'wrreg4000c838 ff010005 ',
+    b'spifs 0 1 3 0 ',
+    b'sfmod 2 2 ',
+    b'cpnum ffffffff ',
+    b'cpbin c0 002000 ' + b'%x' % len(c0) + b' 11002000',
+    b'cpbin c1 005000 ' + b'%x' % len(c1) + b' 11005000',
+    b'cpbin c2 020000 ' + b'%x' % len(c2) + b' 11020000',
+]
 for cmd in cmds:
     uart.write(cmd)
     print('sent', cmd)
